@@ -36,18 +36,23 @@
         #hud {
             position: absolute;
             top: 10px;
-            left: 10px;
+            right: 10px;
             color: #00ff00;
             font-family: monospace;
             font-size: 14px;
             z-index: 100;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            text-align: right;
         }
 
         .hud-item {
             margin-bottom: 5px;
         }
 
-        #controls {
+        .controls-mode {
             position: absolute;
             bottom: 10px;
             left: 10px;
@@ -64,30 +69,54 @@
         .control-item {
             margin-bottom: 3px;
         }
+
+        #version {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            color: #00ff00;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 100;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 5px 10px;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+        }
     </style>
-  <script type="module" crossorigin src="/gta-style-game/assets/index-Dn_9f26_.js"></script>
+  <script type="module" crossorigin src="/gta-style-game/assets/index-Cc2_zILH.js"></script>
 </head>
 <body>
     <div id="game-container">
         <canvas id="game-canvas"></canvas>
         <div id="hud">
-            <div class="hud-item">FPS: <span id="fps">0</span></div>
-            <div class="hud-item">Position: <span id="position">0, 0</span></div>
+            <div class="hud-item"><span id="score">得分: 0</span></div>
+            <div class="hud-item"><span id="weapon">武器: 手枪</span></div>
+            <div class="hud-item"><span id="ammo">弹药: 0/0</span></div>
         </div>
-        <div id="controls">
-            <div class="control-item"><strong>控制说明</strong></div>
+        <!-- 步行模式控制提示 -->
+        <div id="controls-walking" class="controls-mode">
+            <div class="control-item"><strong>步行模式</strong></div>
             <div class="control-item">WASD/方向键 - 移动</div>
             <div class="control-item">鼠标移动 - 瞄准</div>
             <div class="control-item">左键点击 - 射击</div>
             <div class="control-item">R - 装弹</div>
             <div class="control-item">1 - 手枪 | 2 - 步枪 | 3 - 霰弹枪</div>
-            <div class="control-item">F - 进入/离开车辆</div>
+            <div class="control-item">F - 进入车辆</div>
             <div class="control-item">Q/E - 缩放视图</div>
-            <div class="control-item"><strong>车辆操作</strong></div>
+        </div>
+
+        <!-- 驾驶模式控制提示 -->
+        <div id="controls-driving" class="controls-mode" style="display: none;">
+            <div class="control-item"><strong>驾驶模式</strong></div>
             <div class="control-item">W/↑ - 加速 | S/↓ - 减速</div>
             <div class="control-item">A/← - 左转 | D/→ - 右转</div>
-            <div class="control-item">在车辆中只能使用手枪</div>
+            <div class="control-item">鼠标移动 - 瞄准</div>
+            <div class="control-item">左键点击 - 射击（仅手枪）</div>
+            <div class="control-item">F - 离开车辆</div>
+            <div class="control-item">Q/E - 缩放视图</div>
         </div>
+        <div id="version">v1.0.0</div>
     </div>
 </body>
 </html>

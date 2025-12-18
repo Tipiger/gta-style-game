@@ -1,0 +1,19 @@
+{
+  "name": "gta-style-game",
+  "version": "0.1.0",
+  "description": "A GTA2-style top-down action game built with TypeScript and Canvas",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && gh-pages -d dist"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "gh-pages": "^6.1.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.7"
+  }
+}

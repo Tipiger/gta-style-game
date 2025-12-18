@@ -230,6 +230,9 @@ export class Game {
 
     // 更新HUD
     this.updateHUD();
+
+    // 清除本帧的刚按下键记录
+    this.inputManager.clearJustPressedKeys();
   }
 
   /**
@@ -295,8 +298,8 @@ export class Game {
   private handleVehicleInteraction(): void {
     // 如果玩家已在车辆中
     if (this.player.isInVehicle()) {
-      // 按E键离开车辆
-      if (this.inputManager.isKeyPressed('e')) {
+      // 按F键离开车辆
+      if (this.inputManager.isKeyJustPressed('f')) {
         this.player.exitVehicle();
       }
       return;
@@ -306,8 +309,8 @@ export class Game {
     const nearbyVehicles = this.vehicleManager.getNearbyVehicles(this.player.getPosition(), 100);
     
     if (nearbyVehicles.length > 0) {
-      // 按E键进入最近的车辆
-      if (this.inputManager.isKeyPressed('e')) {
+      // 按F键进入最近的车辆
+      if (this.inputManager.isKeyJustPressed('f')) {
         const vehicle = nearbyVehicles[0];
         this.player.enterVehicle(vehicle);
       }

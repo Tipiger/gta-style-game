@@ -3,6 +3,7 @@
  */
 export class InputManager {
   private keys: Map<string, boolean> = new Map();
+  private keysJustPressed: Set<string> = new Set();
   private mousePosition: { x: number; y: number } = { x: 0, y: 0 };
   private mouseButtons: Map<number, boolean> = new Map();
 
@@ -16,7 +17,12 @@ export class InputManager {
    */
   private setupKeyboardListeners(): void {
     window.addEventListener('keydown', (e) => {
-      this.keys.set(e.key.toLowerCase(), true);
+      const key = e.key.toLowerCase();
+      // 只在按键从未按下变为按下时，标记为刚按下
+      if (!this.keys.get(key)) {
+        this.keysJustPressed.add(key);
+      }
+      this.keys.set(key, true);
     });
 
     window.addEventListener('keyup', (e) => {
@@ -46,6 +52,20 @@ export class InputManager {
    */
   isKeyPressed(key: string): boolean {
     return this.keys.get(key.toLowerCase()) ?? false;
+  }
+
+  /**
+   * 检查键是否刚被按下（只在按下的那一帧返回true）
+   */
+  isKeyJustPressed(key: string): boolean {
+    return this.keysJustPressed.has(key.toLowerCase());
+  }
+
+  /**
+   * 清除刚按下的键记录（应该在每帧更新后调用）
+   */
+  clearJustPressedKeys(): void {
+    this.keysJustPressed.clear();
   }
 
   /**

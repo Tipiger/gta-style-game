@@ -9,10 +9,10 @@ import { CollisionSystem } from '../world/Collision';
 export class Vehicle {
   private position: Vector2;
   private velocity: Vector2;
-  private speed: number = 200; // 像素/秒
-  private maxSpeed: number = 300;
-  private acceleration: number = 150;
-  private friction: number = 0.95; // 摩擦力
+  private speed: number = 600; // 像素/秒
+  private maxSpeed: number = 900;
+  private acceleration: number = 450;
+  private friction: number = 0.98; // 摩擦力
   private width: number = 40;
   private height: number = 24;
   private color: string = '#ff0000'; // 红色车辆
@@ -146,14 +146,14 @@ export class Vehicle {
    * 转向左
    */
   turnLeft(): void {
-    this.rotation -= 0.1;
+    this.rotation -= 0.05;
   }
 
   /**
    * 转向右
    */
   turnRight(): void {
-    this.rotation += 0.1;
+    this.rotation += 0.05;
   }
 
   /**

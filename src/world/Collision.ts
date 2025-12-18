@@ -142,6 +142,53 @@ export class CollisionSystem {
   }
 
   /**
+   * 计算两个圆形碰撞的法向量
+   */
+  getCollisionNormal(id1: string, id2: string): Vector2 | null {
+    const collider1 = this.colliders.get(id1);
+    const collider2 = this.colliders.get(id2);
+
+    if (!collider1 || !collider2) return null;
+
+    // 从碰撞体1指向碰撞体2的向量
+    const diff = collider2.position.subtract(collider1.position);
+    const distance = diff.length();
+
+    if (distance === 0) return new Vector2(1, 0); // 默认法向量
+
+    // 返回单位法向量
+    return diff.normalize();
+  }
+
+  /**
+   * 计算圆形与矩形碰撞的法向量
+   */
+  getCollisionNormalCircleRect(circleId: string, rectId: string): Vector2 | null {
+    const circle = this.colliders.get(circleId);
+    const rect = this.colliders.get(rectId);
+
+    if (!circle || !rect) return null;
+
+    const rectLeft = rect.position.x;
+    const rectRight = rect.position.x + (rect.width || 0);
+    const rectTop = rect.position.y;
+    const rectBottom = rect.position.y + (rect.height || 0);
+
+    // 找到圆心到矩形最近的点
+    const closestX = Math.max(rectLeft, Math.min(circle.position.x, rectRight));
+    const closestY = Math.max(rectTop, Math.min(circle.position.y, rectBottom));
+
+    // 从最近点指向圆心的向量
+    const diff = new Vector2(circle.position.x - closestX, circle.position.y - closestY);
+    const distance = diff.length();
+
+    if (distance === 0) return new Vector2(1, 0); // 默认法向量
+
+    // 返回单位法向量
+    return diff.normalize();
+  }
+
+  /**
    * 清空所有碰撞体
    */
   clear(): void {

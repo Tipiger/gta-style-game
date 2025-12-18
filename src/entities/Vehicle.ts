@@ -24,6 +24,8 @@ export class Vehicle {
   private maxHealth: number = 100; // 最大血量
   private health: number = 100; // 当前血量
   private isDead: boolean = false; // 是否已被摧毁
+  private restitution: number = 0.6; // 回弹系数（0-1，越高反弹越强）
+  private lastCollisionNormal: Vector2 | null = null; // 上次碰撞的法向量
 
   constructor(id: string, position: Vector2) {
     this.id = id;
@@ -175,6 +177,9 @@ export class Vehicle {
       const collisions = this.collisionSystem.getCollisions(this.id);
 
       if (collisions.length > 0) {
+        // 发生碰撞，计算碰撞速度（用于伤害计算）
+        const collisionSpeed = this.velocity.length();
+        
         // 如果发生碰撞，尝试沿着轴移动
         const testX = this.position.add(new Vector2(this.velocity.x * deltaTime, 0));
         this.collisionSystem.updatePosition(this.id, testX);
@@ -182,6 +187,8 @@ export class Vehicle {
 
         if (collisionsX.length === 0) {
           this.position = testX;
+          // X 方向通过，反弹 Y 方向速度（基于回弹系数）
+          this.velocity = new Vector2(this.velocity.x, -this.velocity.y * this.restitution);
         } else {
           const testY = this.position.add(new Vector2(0, this.velocity.y * deltaTime));
           this.collisionSystem.updatePosition(this.id, testY);
@@ -189,10 +196,58 @@ export class Vehicle {
 
           if (collisionsY.length === 0) {
             this.position = testY;
+            // Y 方向通过，反弹 X 方向速度（基于回弹系数）
+            this.velocity = new Vector2(-this.velocity.x * this.restitution, this.velocity.y);
           } else {
-            // 两个方向都碰撞，停止移动
+            // 两个方向都碰撞，使用法向量计算反弹
             this.collisionSystem.updatePosition(this.id, this.position);
-            this.velocity = new Vector2(0, 0); // 停止车辆
+            
+            // 获取碰撞法向量
+            let collisionNormal: Vector2 | null = null;
+            for (const colliderId of collisions) {
+              const collider1 = this.collisionSystem.getCollider(this.id);
+              const collider2 = this.collisionSystem.getCollider(colliderId);
+              
+              if (collider1 && collider2) {
+                if (collider1.type === 'circle' && collider2.type === 'circle') {
+                  collisionNormal = this.collisionSystem.getCollisionNormal(this.id, colliderId);
+                } else if (collider1.type === 'circle' && collider2.type === 'rect') {
+                  collisionNormal = this.collisionSystem.getCollisionNormalCircleRect(this.id, colliderId);
+                }
+                
+                if (collisionNormal) {
+                  this.lastCollisionNormal = collisionNormal;
+                  break;
+                }
+              }
+            }
+            
+            // 基于法向量计算反弹速度
+            if (collisionNormal) {
+              // 计算速度在法向量上的投影
+              const velocityDotNormal = this.velocity.x * collisionNormal.x + this.velocity.y * collisionNormal.y;
+              
+              // 如果速度指向碰撞体，则反弹
+              if (velocityDotNormal < 0) {
+                // 反弹速度 = 速度 - (1 + 回弹系数) * (速度·法向量) * 法向量
+                const bounceForce = (1 + this.restitution) * velocityDotNormal;
+                const bounceVelocity = new Vector2(
+                  this.velocity.x - bounceForce * collisionNormal.x,
+                  this.velocity.y - bounceForce * collisionNormal.y
+                );
+                this.velocity = bounceVelocity;
+              }
+            } else {
+              // 如果无法计算法向量，使用简单反弹
+              this.velocity = this.velocity.multiply(-this.restitution);
+            }
+            
+            // 根据碰撞速度扣除血量
+            if (collisionSpeed > 50) {
+              // 只要有足够的碰撞速度就会造成伤害
+              const damage = Math.max(1, Math.floor(collisionSpeed / 30)); // 最少扣1血，最多扣30血
+              this.takeDamage(damage);
+            }
           }
         }
       } else {
@@ -353,6 +408,27 @@ export class Vehicle {
    */
   getRadius(): number {
     return Math.max(this.width, this.height) / 2;
+  }
+
+  /**
+   * 设置回弹系数
+   */
+  setRestitution(value: number): void {
+    this.restitution = Math.max(0, Math.min(1, value)); // 限制在0-1之间
+  }
+
+  /**
+   * 获取回弹系数
+   */
+  getRestitution(): number {
+    return this.restitution;
+  }
+
+  /**
+   * 获取上次碰撞的法向量
+   */
+  getLastCollisionNormal(): Vector2 | null {
+    return this.lastCollisionNormal;
   }
 }
 

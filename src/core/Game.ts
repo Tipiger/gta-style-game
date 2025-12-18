@@ -212,6 +212,9 @@ export class Game {
     // 清理超出范围的NPC子弹
     this.cleanupNPCBullets();
 
+    // 检查车辆是否被摧毁
+    this.checkDestroyedVehicles();
+
     // 检查玩家是否死亡
     if (this.player.getIsDead()) {
       this.gameOver = true;
@@ -451,24 +454,55 @@ export class Game {
   }
 
   /**
-   * 检查NPC子弹是否击中玩家
+   * 检查NPC子弹是否击中玩家和车辆
    */
   private checkNPCBulletHits(): void {
     const bullets = this.npcBulletManager.getBullets();
     const playerPos = this.player.getPosition();
     const playerRadius = this.player.getRadius();
+    const vehicles = this.vehicleManager.getVehicles();
 
     // 遍历所有NPC子弹
     for (let i = bullets.length - 1; i >= 0; i--) {
       const bullet = bullets[i];
       const bulletPos = bullet.getPosition();
       const bulletRadius = bullet.getSize();
-      const distance = bulletPos.distance(playerPos);
+      let bulletHit = false;
 
-      if (distance < bulletRadius + playerRadius) {
-        // 子弹击中玩家
-        const damage = bullet.getDamage();
-        this.player.takeDamage(damage);
+      // 首先检查是否击中玩家（如果玩家不在车辆中）
+      if (!this.player.isInVehicle()) {
+        const distance = bulletPos.distance(playerPos);
+        if (distance < bulletRadius + playerRadius) {
+          // 子弹击中玩家
+          const damage = bullet.getDamage();
+          this.player.takeDamage(damage);
+          bulletHit = true;
+        }
+      }
+
+      // 如果子弹还没击中，检查是否击中车辆
+      if (!bulletHit) {
+        for (const vehicle of vehicles) {
+          if (vehicle.getIsDead()) {
+            continue;
+          }
+
+          const vehiclePos = vehicle.getPosition();
+          const vehicleRadius = vehicle.getRadius();
+          const distance = bulletPos.distance(vehiclePos);
+
+          if (distance < bulletRadius + vehicleRadius) {
+            // 子弹击中车辆
+            const damage = bullet.getDamage();
+            vehicle.takeDamage(damage);
+            bulletHit = true;
+            break;
+          }
+        }
+      }
+
+      // 如果子弹击中任何目标，删除子弹
+      if (bulletHit) {
         this.npcBulletManager.removeBullet(i);
       }
     }
@@ -490,6 +524,21 @@ export class Game {
       // 如果子弹超出1000像素范围，删除它
       if (distance > 1000) {
         this.npcBulletManager.removeBullet(i);
+      }
+    }
+  }
+
+  /**
+   * 检查被摧毁的车辆，如果玩家在车辆中则强制离开
+   */
+  private checkDestroyedVehicles(): void {
+    // 如果玩家在车辆中
+    if (this.player.isInVehicle()) {
+      const playerVehicle = this.vehicleManager.getPlayerVehicle('player');
+      // 如果玩家所在的车辆被摧毁
+      if (playerVehicle && playerVehicle.getIsDead()) {
+        // 强制玩家离开车辆
+        this.player.exitVehicle();
       }
     }
   }

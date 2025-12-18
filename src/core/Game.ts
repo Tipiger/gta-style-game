@@ -383,11 +383,12 @@ export class Game {
   }
 
   /**
-   * 检查子弹是否击中NPC
+   * 检查子弹是否击中NPC和车辆
    */
   private checkBulletHits(): void {
     const bullets = this.player.getBulletManager().getBullets();
     const npcs = this.npcManager.getAllNPCs();
+    const vehicles = this.vehicleManager.getVehicles();
 
     // 遍历所有子弹
     for (let i = bullets.length - 1; i >= 0; i--) {
@@ -421,7 +422,28 @@ export class Game {
         }
       }
 
-      // 如果子弹击中NPC，删除子弹
+      // 如果子弹还没击中，检查是否击中车辆
+      if (!bulletHit) {
+        for (const vehicle of vehicles) {
+          if (vehicle.getIsDead()) {
+            continue;
+          }
+
+          const vehiclePos = vehicle.getPosition();
+          const vehicleRadius = vehicle.getRadius();
+          const distance = bulletPos.distance(vehiclePos);
+
+          if (distance < bulletRadius + vehicleRadius) {
+            // 子弹击中车辆
+            const damage = bullet.getDamage();
+            vehicle.takeDamage(damage);
+            bulletHit = true;
+            break;
+          }
+        }
+      }
+
+      // 如果子弹击中任何目标，删除子弹
       if (bulletHit) {
         this.player.getBulletManager().removeBullet(i);
       }
@@ -566,40 +588,51 @@ export class Game {
    * 更新HUD显示
    */
   private updateHUD(): void {
-    const fpsElement = document.getElementById('fps');
-    const positionElement = document.getElementById('position');
+    const scoreElement = document.getElementById('score');
+    const weaponElement = document.getElementById('weapon');
+    const ammoElement = document.getElementById('ammo');
 
-    if (fpsElement) {
-      fpsElement.textContent = this.fps.toString();
+    if (scoreElement) {
+      scoreElement.textContent = `得分: ${this.score}`;
     }
 
-    if (positionElement) {
-      const pos = this.player.getPosition();
-      const npcCount = this.npcManager.getNPCCount();
+    if (weaponElement) {
+      const weapon = this.player.getWeapon();
+      const weaponName = weapon.getName();
+      const isReloading = this.player.isReloading() ? ' [装弹中]' : '';
+      weaponElement.textContent = `武器: ${weaponName}${isReloading}`;
+    }
+
+    if (ammoElement) {
       const weapon = this.player.getWeapon();
       const currentAmmo = weapon.getCurrentAmmo();
       const reserveAmmo = weapon.getReserveAmmo();
-      const bulletCount = this.player.getBulletManager().getCount();
-      const weaponName = weapon.getName();
-      const itemCount = this.itemManager.getCount();
-      const isReloading = this.player.isReloading() ? ' [装弹中]' : '';
-      const playerHealth = this.player.getHealth();
-      const playerMaxHealth = this.player.getMaxHealth();
-      const vehicleCount = this.vehicleManager.getCount();
-      
-      let statusText = `血量: ${playerHealth}/${playerMaxHealth} | 得分: ${this.score} | NPCs: ${npcCount} | 武器: ${weaponName}${isReloading} | 弹药: ${currentAmmo}/${reserveAmmo} | 子弹: ${bulletCount} | 物品: ${itemCount} | 车辆: ${vehicleCount}`;
-      
-      // 添加车辆状态信息
-      if (this.player.isInVehicle()) {
-        statusText += ' | 状态: 在车辆中 (按E离开)';
-      } else {
-        const nearbyVehicles = this.vehicleManager.getNearbyVehicles(this.player.getPosition(), 100);
-        if (nearbyVehicles.length > 0) {
-          statusText += ' | 提示: 按E进入车辆';
-        }
-      }
-      
-      positionElement.textContent = statusText;
+      ammoElement.textContent = `弹药: ${currentAmmo}/${reserveAmmo}`;
+    }
+
+    // 更新控制提示
+    this.updateControlsDisplay();
+  }
+
+  /**
+   * 更新控制提示显示
+   */
+  private updateControlsDisplay(): void {
+    const walkingControls = document.getElementById('controls-walking');
+    const drivingControls = document.getElementById('controls-driving');
+
+    if (!walkingControls || !drivingControls) {
+      return;
+    }
+
+    if (this.player.isInVehicle()) {
+      // 驾驶模式
+      walkingControls.style.display = 'none';
+      drivingControls.style.display = 'block';
+    } else {
+      // 步行模式
+      walkingControls.style.display = 'block';
+      drivingControls.style.display = 'none';
     }
   }
 }

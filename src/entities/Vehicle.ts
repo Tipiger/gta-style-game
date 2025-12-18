@@ -21,6 +21,9 @@ export class Vehicle {
   private collisionSystem: CollisionSystem | null = null;
   private isOccupied: boolean = false; // 是否被占用
   private occupantId: string | null = null; // 占用者ID
+  private maxHealth: number = 100; // 最大血量
+  private health: number = 100; // 当前血量
+  private isDead: boolean = false; // 是否已被摧毁
 
   constructor(id: string, position: Vector2) {
     this.id = id;
@@ -163,12 +166,41 @@ export class Vehicle {
     // 应用摩擦力
     this.velocity = this.velocity.multiply(this.friction);
 
-    // 更新位置
-    this.position = this.position.add(this.velocity.multiply(deltaTime));
+    // 计算新位置
+    const newPosition = this.position.add(this.velocity.multiply(deltaTime));
 
-    // 更新碰撞系统
+    // 检查碰撞
     if (this.collisionSystem) {
-      this.collisionSystem.updatePosition(this.id, this.position.clone());
+      this.collisionSystem.updatePosition(this.id, newPosition);
+      const collisions = this.collisionSystem.getCollisions(this.id);
+
+      if (collisions.length > 0) {
+        // 如果发生碰撞，尝试沿着轴移动
+        const testX = this.position.add(new Vector2(this.velocity.x * deltaTime, 0));
+        this.collisionSystem.updatePosition(this.id, testX);
+        const collisionsX = this.collisionSystem.getCollisions(this.id);
+
+        if (collisionsX.length === 0) {
+          this.position = testX;
+        } else {
+          const testY = this.position.add(new Vector2(0, this.velocity.y * deltaTime));
+          this.collisionSystem.updatePosition(this.id, testY);
+          const collisionsY = this.collisionSystem.getCollisions(this.id);
+
+          if (collisionsY.length === 0) {
+            this.position = testY;
+          } else {
+            // 两个方向都碰撞，停止移动
+            this.collisionSystem.updatePosition(this.id, this.position);
+            this.velocity = new Vector2(0, 0); // 停止车辆
+          }
+        }
+      } else {
+        // 没有碰撞，更新位置
+        this.position = newPosition;
+      }
+    } else {
+      this.position = newPosition;
     }
   }
 
@@ -213,6 +245,63 @@ export class Vehicle {
         this.height * zoom
       );
     }
+
+    // 绘制血条（在车辆下方）
+    this.renderHealthBar(renderer, screenPos, zoom);
+  }
+
+  /**
+   * 绘制血条
+   */
+  private renderHealthBar(renderer: Renderer, screenPos: Vector2, zoom: number): void {
+    const ctx = renderer.getContext();
+    
+    // 血条参数
+    const healthBarWidth = this.width * zoom;
+    const healthBarHeight = 4 * zoom;
+    const healthBarOffsetY = this.height / 2 * zoom + 8 * zoom; // 车辆下方8像素处
+    
+    // 血条背景（黑色）
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(
+      screenPos.x - healthBarWidth / 2,
+      screenPos.y + healthBarOffsetY,
+      healthBarWidth,
+      healthBarHeight
+    );
+    
+    // 血条边框（白色）
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(
+      screenPos.x - healthBarWidth / 2,
+      screenPos.y + healthBarOffsetY,
+      healthBarWidth,
+      healthBarHeight
+    );
+    
+    // 血量条（根据血量比例显示）
+    const healthPercentage = this.health / this.maxHealth;
+    const healthBarFillWidth = healthBarWidth * healthPercentage;
+    
+    // 根据血量比例改变颜色：绿色 -> 黄色 -> 红色
+    if (healthPercentage > 0.5) {
+      // 绿色到黄色
+      ctx.fillStyle = '#00ff00';
+    } else if (healthPercentage > 0.25) {
+      // 黄色
+      ctx.fillStyle = '#ffff00';
+    } else {
+      // 红色
+      ctx.fillStyle = '#ff0000';
+    }
+    
+    ctx.fillRect(
+      screenPos.x - healthBarWidth / 2,
+      screenPos.y + healthBarOffsetY,
+      healthBarFillWidth,
+      healthBarHeight
+    );
   }
 
   /**
@@ -221,6 +310,49 @@ export class Vehicle {
   isPlayerNearby(playerPosition: Vector2, range: number = 50): boolean {
     const distance = this.position.subtract(playerPosition).length();
     return distance < range;
+  }
+
+  /**
+   * 受伤
+   */
+  takeDamage(damage: number): void {
+    if (this.isDead) {
+      return;
+    }
+
+    this.health -= damage;
+    if (this.health <= 0) {
+      this.health = 0;
+      this.isDead = true;
+    }
+  }
+
+  /**
+   * 获取当前血量
+   */
+  getHealth(): number {
+    return this.health;
+  }
+
+  /**
+   * 获取最大血量
+   */
+  getMaxHealth(): number {
+    return this.maxHealth;
+  }
+
+  /**
+   * 是否已被摧毁
+   */
+  getIsDead(): boolean {
+    return this.isDead;
+  }
+
+  /**
+   * 获取车辆半径（用于碰撞检测）
+   */
+  getRadius(): number {
+    return Math.max(this.width, this.height) / 2;
   }
 }
 
@@ -299,6 +431,12 @@ export class VehicleManager {
       // 更新车辆
       vehicle.update(deltaTime);
 
+      // 检查是否已被摧毁
+      if (vehicle.getIsDead()) {
+        vehiclesToRemove.push(vehicleId);
+        continue;
+      }
+
       // 检查是否超出范围
       const distance = vehicle.getPosition().subtract(playerPosition).length();
       if (distance > this.despawnRange) {
@@ -306,7 +444,7 @@ export class VehicleManager {
       }
     }
 
-    // 移除超出范围的车辆
+    // 移除超出范围或已摧毁的车辆
     for (const vehicleId of vehiclesToRemove) {
       this.vehicles.delete(vehicleId);
     }

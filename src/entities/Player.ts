@@ -202,6 +202,24 @@ export class Player {
    */
   exitVehicle(): void {
     if (this.currentVehicle !== null) {
+      // 将玩家移动到车辆外的安全位置（车辆右侧）
+      const vehiclePos = this.currentVehicle.getPosition();
+      const offsetDistance = 50; // 距离车辆50像素
+      const offsetAngle = this.currentVehicle.getRotation(); // 使用车辆的朝向
+      
+      // 计算下车位置（在车辆右侧）
+      const exitPos = new Vector2(
+        vehiclePos.x + Math.cos(offsetAngle + Math.PI / 2) * offsetDistance,
+        vehiclePos.y + Math.sin(offsetAngle + Math.PI / 2) * offsetDistance
+      );
+      
+      this.position = exitPos;
+      
+      // 更新碰撞系统位置
+      if (this.collisionSystem) {
+        this.collisionSystem.updatePosition(this.playerId, this.position);
+      }
+      
       this.currentVehicle.exitVehicle();
       // 恢复之前的武器
       if (this.weapons.has(this.weaponBeforeVehicle)) {

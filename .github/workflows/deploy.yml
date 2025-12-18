@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - master
+      - auto_shooting
 
 jobs:
   deploy:

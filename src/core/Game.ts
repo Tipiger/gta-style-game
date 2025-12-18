@@ -203,6 +203,9 @@ export class Game {
     // 检查玩家是否拾取物品
     this.checkItemPickup();
 
+    // 检查子弹是否击中建筑物
+    this.checkBulletsHitBuildings();
+
     // 检查子弹是否击中NPC
     this.checkBulletHits();
 
@@ -223,12 +226,17 @@ export class Game {
     // 摄像机跟随玩家
     this.camera.follow(this.player.getPosition(), 0.1);
 
-    // 处理缩放输入
-    if (this.inputManager.isKeyPressed('q')) {
-      this.camera.zoomOut(0.02);
-    }
-    if (this.inputManager.isKeyPressed('e')) {
-      this.camera.zoomIn(0.02);
+    // 根据驾驶状态调整摄像机缩放
+    const isInVehicle = this.player.isInVehicle();
+    const targetZoom = isInVehicle ? 0.6 : 1;
+    const currentZoom = this.camera.getZoom();
+    const zoomDifference = targetZoom - currentZoom;
+    
+    // 平滑过渡缩放
+    if (Math.abs(zoomDifference) > 0.01) {
+      this.camera.setZoom(currentZoom + zoomDifference * 0.1);
+    } else {
+      this.camera.setZoom(targetZoom);
     }
 
     // 更新HUD
@@ -386,12 +394,36 @@ export class Game {
   }
 
   /**
+   * 检查子弹是否击中建筑物
+   */
+  private checkBulletsHitBuildings(): void {
+    // 检查玩家子弹
+    const playerBullets = this.player.getBulletManager().getBullets();
+    for (let i = playerBullets.length - 1; i >= 0; i--) {
+      const bullet = playerBullets[i];
+      if (this.gameMap.isPointInBuilding(bullet.getPosition())) {
+        this.player.getBulletManager().removeBullet(i);
+      }
+    }
+
+    // 检查NPC子弹
+    const npcBullets = this.npcBulletManager.getBullets();
+    for (let i = npcBullets.length - 1; i >= 0; i--) {
+      const bullet = npcBullets[i];
+      if (this.gameMap.isPointInBuilding(bullet.getPosition())) {
+        this.npcBulletManager.removeBullet(i);
+      }
+    }
+  }
+
+  /**
    * 检查子弹是否击中NPC和车辆
    */
   private checkBulletHits(): void {
     const bullets = this.player.getBulletManager().getBullets();
     const npcs = this.npcManager.getAllNPCs();
     const vehicles = this.vehicleManager.getVehicles();
+    const playerVehicle = this.player.getCurrentVehicle(); // 获取玩家所在的车辆
 
     // 遍历所有子弹
     for (let i = bullets.length - 1; i >= 0; i--) {
@@ -429,6 +461,11 @@ export class Game {
       if (!bulletHit) {
         for (const vehicle of vehicles) {
           if (vehicle.getIsDead()) {
+            continue;
+          }
+
+          // 如果玩家在这辆车里，跳过这辆车（不能击中自己的车）
+          if (playerVehicle === vehicle) {
             continue;
           }
 

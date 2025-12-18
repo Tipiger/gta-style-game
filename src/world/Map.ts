@@ -260,4 +260,22 @@ export class GameMap {
     return Array.from(this.elementMap.values()).filter(el => el.type === 'building');
   }
 
+  /**
+   * 检查点是否与建筑物碰撞
+   */
+  isPointInBuilding(point: Vector2): boolean {
+    const buildings = this.getBuildings();
+    for (const building of buildings) {
+      if (
+        point.x >= building.x &&
+        point.x <= building.x + building.width &&
+        point.y >= building.y &&
+        point.y <= building.y + building.height
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
 }

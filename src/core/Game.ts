@@ -228,7 +228,7 @@ export class Game {
 
     // 根据驾驶状态调整摄像机缩放
     const isInVehicle = this.player.isInVehicle();
-    const targetZoom = isInVehicle ? 0.6 : 1;
+    const targetZoom = isInVehicle ? 0.9 : 1.5;
     const currentZoom = this.camera.getZoom();
     const zoomDifference = targetZoom - currentZoom;
     

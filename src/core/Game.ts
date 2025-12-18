@@ -8,6 +8,7 @@ import { Vector2 } from '../utils/Vector2';
 import { WeaponType, Bullet } from '../entities/Weapon';
 import { ItemManager } from '../entities/Item';
 import { BulletManager } from '../entities/Weapon';
+import { VehicleManager } from '../entities/Vehicle';
 
 /**
  * 主游戏类
@@ -20,6 +21,7 @@ export class Game {
   private npcManager: NPCManager;
   private gameMap: GameMap;
   private itemManager: ItemManager;
+  private vehicleManager: VehicleManager; // 车辆管理器
   private isRunning: boolean = false;
   private frameCount: number = 0;
   private lastFrameTime: number = 0;
@@ -49,6 +51,10 @@ export class Game {
 
     // 初始化物品管理器
     this.itemManager = new ItemManager();
+
+    // 初始化车辆管理器
+    this.vehicleManager = new VehicleManager();
+    this.vehicleManager.setCollisionSystem(this.gameMap.getCollisionSystem());
 
     // 初始化NPC子弹管理器
     this.npcBulletManager = new BulletManager();
@@ -167,6 +173,12 @@ export class Game {
     // 更新玩家
     this.player.update(deltaTime, movement, currentTime);
 
+    // 更新车辆
+    this.vehicleManager.update(deltaTime, this.player.getPosition());
+
+    // 处理车辆交互
+    this.handleVehicleInteraction();
+
     // 更新NPC
     this.npcManager.update(deltaTime, this.player.getPosition(), currentTime);
 
@@ -275,6 +287,31 @@ export class Game {
       }
     }
     return false;
+  }
+
+  /**
+   * 处理车辆交互
+   */
+  private handleVehicleInteraction(): void {
+    // 如果玩家已在车辆中
+    if (this.player.isInVehicle()) {
+      // 按E键离开车辆
+      if (this.inputManager.isKeyPressed('e')) {
+        this.player.exitVehicle();
+      }
+      return;
+    }
+
+    // 检查玩家附近是否有车辆
+    const nearbyVehicles = this.vehicleManager.getNearbyVehicles(this.player.getPosition(), 100);
+    
+    if (nearbyVehicles.length > 0) {
+      // 按E键进入最近的车辆
+      if (this.inputManager.isKeyPressed('e')) {
+        const vehicle = nearbyVehicles[0];
+        this.player.enterVehicle(vehicle);
+      }
+    }
   }
 
   /**
@@ -445,6 +482,9 @@ export class Game {
     // 绘制物品
     this.itemManager.render(this.renderer, this.camera);
 
+    // 绘制车辆
+    this.vehicleManager.render(this.renderer, this.camera);
+
     // 绘制NPC
     this.npcManager.render(this.renderer, this.camera);
 
@@ -542,7 +582,21 @@ export class Game {
       const isReloading = this.player.isReloading() ? ' [装弹中]' : '';
       const playerHealth = this.player.getHealth();
       const playerMaxHealth = this.player.getMaxHealth();
-      positionElement.textContent = `血量: ${playerHealth}/${playerMaxHealth} | 得分: ${this.score} | NPCs: ${npcCount} | 武器: ${weaponName}${isReloading} | 弹药: ${currentAmmo}/${reserveAmmo} | 子弹: ${bulletCount} | 物品: ${itemCount}`;
+      const vehicleCount = this.vehicleManager.getCount();
+      
+      let statusText = `血量: ${playerHealth}/${playerMaxHealth} | 得分: ${this.score} | NPCs: ${npcCount} | 武器: ${weaponName}${isReloading} | 弹药: ${currentAmmo}/${reserveAmmo} | 子弹: ${bulletCount} | 物品: ${itemCount} | 车辆: ${vehicleCount}`;
+      
+      // 添加车辆状态信息
+      if (this.player.isInVehicle()) {
+        statusText += ' | 状态: 在车辆中 (按E离开)';
+      } else {
+        const nearbyVehicles = this.vehicleManager.getNearbyVehicles(this.player.getPosition(), 100);
+        if (nearbyVehicles.length > 0) {
+          statusText += ' | 提示: 按E进入车辆';
+        }
+      }
+      
+      positionElement.textContent = statusText;
     }
   }
 }

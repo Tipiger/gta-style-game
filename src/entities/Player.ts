@@ -3,6 +3,7 @@ import { Renderer } from '../graphics/Renderer';
 import { Camera } from '../graphics/Camera';
 import { CollisionSystem } from '../world/Collision';
 import { Weapon, WeaponType, Bullet, BulletManager, FireMode } from './Weapon';
+import { Vehicle } from './Vehicle';
 
 /**
  * 玩家角色类
@@ -25,6 +26,8 @@ export class Player {
   private maxHealth: number = 100; // 最大血量
   private health: number = 100; // 当前血量
   private isDead: boolean = false; // 是否已死亡
+  private currentVehicle: Vehicle | null = null; // 当前所在的车辆
+  private weaponBeforeVehicle: WeaponType = WeaponType.PISTOL; // 进入车辆前的武器
 
   constructor(position: Vector2) {
     this.position = position.clone();
@@ -167,6 +170,10 @@ export class Player {
    * 切换武器
    */
   switchWeapon(weaponType: WeaponType): void {
+    // 如果在车辆中，只能使用手枪
+    if (this.currentVehicle !== null && weaponType !== WeaponType.PISTOL) {
+      return;
+    }
     if (this.weapons.has(weaponType)) {
       this.currentWeaponType = weaponType;
     }
@@ -177,6 +184,45 @@ export class Player {
    */
   getCurrentWeaponType(): WeaponType {
     return this.currentWeaponType;
+  }
+
+  /**
+   * 进入车辆
+   */
+  enterVehicle(vehicle: Vehicle): void {
+    this.currentVehicle = vehicle;
+    this.weaponBeforeVehicle = this.currentWeaponType;
+    // 进入车辆后只能使用手枪
+    this.currentWeaponType = WeaponType.PISTOL;
+    vehicle.enterVehicle(this.playerId);
+  }
+
+  /**
+   * 离开车辆
+   */
+  exitVehicle(): void {
+    if (this.currentVehicle !== null) {
+      this.currentVehicle.exitVehicle();
+      // 恢复之前的武器
+      if (this.weapons.has(this.weaponBeforeVehicle)) {
+        this.currentWeaponType = this.weaponBeforeVehicle;
+      }
+      this.currentVehicle = null;
+    }
+  }
+
+  /**
+   * 获取当前车辆
+   */
+  getCurrentVehicle(): Vehicle | null {
+    return this.currentVehicle;
+  }
+
+  /**
+   * 检查是否在车辆中
+   */
+  isInVehicle(): boolean {
+    return this.currentVehicle !== null;
   }
 
   /**
@@ -201,6 +247,40 @@ export class Player {
    * 更新玩家状态
    */
   update(deltaTime: number, movement: { x: number; y: number }, currentTime: number): void {
+    // 如果在车辆中，更新车辆而不是玩家位置
+    if (this.currentVehicle !== null) {
+      // 更新车辆方向
+      if (movement.x > 0) {
+        this.currentVehicle.turnRight();
+      } else if (movement.x < 0) {
+        this.currentVehicle.turnLeft();
+      }
+
+      // 更新车辆速度
+      if (movement.y < 0) {
+        this.currentVehicle.accelerate();
+      } else if (movement.y > 0) {
+        this.currentVehicle.decelerate();
+      }
+
+      // 玩家位置跟随车辆
+      this.position = this.currentVehicle.getPosition().clone();
+
+      // 更新朝向（指向鼠标）
+      const toMouse = this.mousePosition.subtract(this.position);
+      if (toMouse.length() > 0) {
+        this.direction = toMouse.normalize();
+      }
+
+      // 更新子弹
+      this.bulletManager.update(deltaTime);
+
+      // 更新当前武器的装弹状态
+      const weapon = this.getCurrentWeapon();
+      weapon.updateReload(currentTime);
+      return;
+    }
+
     // 更新朝向（指向鼠标）
     const toMouse = this.mousePosition.subtract(this.position);
     if (toMouse.length() > 0) {

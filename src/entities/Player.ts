@@ -28,6 +28,8 @@ export class Player {
   private isDead: boolean = false; // 是否已死亡
   private currentVehicle: Vehicle | null = null; // 当前所在的车辆
   private weaponBeforeVehicle: WeaponType = WeaponType.PISTOL; // 进入车辆前的武器
+  private autoShootRange: number = 300; // 自动射击范围
+  private getNPCsCallback: (() => any[]) | null = null; // 获取NPC列表的回调
 
   constructor(position: Vector2) {
     this.position = position.clone();
@@ -60,6 +62,13 @@ export class Player {
   }
 
   /**
+   * 设置获取NPC列表的回调
+   */
+  setGetNPCsCallback(callback: () => any[]): void {
+    this.getNPCsCallback = callback;
+  }
+
+  /**
    * 获取当前武器
    */
   private getCurrentWeapon(): Weapon {
@@ -71,11 +80,70 @@ export class Player {
   }
 
   /**
+   * 寻找范围内最近的敌人
+   */
+  private findNearestEnemy(): any | null {
+    if (!this.getNPCsCallback) {
+      return null;
+    }
+
+    const npcs = this.getNPCsCallback();
+    let nearestNPC: any = null;
+    let nearestDistance = this.autoShootRange;
+
+    for (const npc of npcs) {
+      // 跳过已死亡的NPC
+      if (npc.getIsDead && npc.getIsDead()) {
+        continue;
+      }
+
+      const npcPos = npc.getPosition();
+      const distance = this.position.distance(npcPos);
+
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestNPC = npc;
+      }
+    }
+
+    return nearestNPC;
+  }
+
+  /**
    * 射击
    */
   fire(currentTime: number): void {
     const weapon = this.getCurrentWeapon();
     const config = weapon.getConfig();
+
+    // 自动射击逻辑：寻找范围内最近的敌人
+    const nearestEnemy = this.findNearestEnemy();
+    
+    if (nearestEnemy) {
+      // 有敌人在范围内，朝向敌人
+      const toEnemy = nearestEnemy.getPosition().subtract(this.position);
+      if (toEnemy.length() > 0) {
+        this.direction = toEnemy.normalize();
+      }
+
+      // 检查弹夹是否有子弹
+      if (weapon.getCurrentAmmo() <= 0) {
+        // 弹夹没有子弹，检查是否有备弹
+        if (weapon.getReserveAmmo() > 0) {
+          // 有备弹，自动换弹
+          this.reload(currentTime);
+        }
+        // 没有备弹，停止射击
+        return;
+      }
+
+      // 自动射击（设置shouldFire为true以支持半自动武器）
+      this.shouldFire = true;
+    } else {
+      // 范围内没有敌人，停止射击
+      this.shouldFire = false;
+      return;
+    }
 
     // 对于半自动武器，只在shouldFire为true时才射击
     if (config.fireMode === FireMode.SEMI_AUTO && !this.shouldFire) {
@@ -123,18 +191,6 @@ export class Player {
     }
   }
 
-  /**
-   * 设置鼠标按下状态
-   */
-  setMouseDown(isDown: boolean): void {
-    const weapon = this.getCurrentWeapon();
-    weapon.setMouseDown(isDown);
-
-    // 对于半自动武器，只在按下时设置shouldFire为true
-    if (isDown) {
-      this.shouldFire = true;
-    }
-  }
 
   /**
    * 装弹

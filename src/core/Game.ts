@@ -65,25 +65,15 @@ export class Game {
     // 为玩家设置碰撞系统
     this.player.setCollisionSystem(this.gameMap.getCollisionSystem());
 
+    // 为玩家设置获取NPC列表的回调（用于自动射击）
+    this.player.setGetNPCsCallback(() => this.npcManager.getAllNPCs());
+
     // 设置摄像机初始位置
     this.camera.setPosition(this.player.getPosition());
 
     // 监听窗口大小变化
     window.addEventListener('resize', () => {
       this.camera.updateSize(this.renderer.getWidth(), this.renderer.getHeight());
-    });
-
-    // 监听鼠标按下和释放事件（用于全自动武器）
-    document.addEventListener('mousedown', (e) => {
-      if (e.button === 0) { // 左键
-        this.player.setMouseDown(true);
-      }
-    });
-
-    document.addEventListener('mouseup', (e) => {
-      if (e.button === 0) { // 左键
-        this.player.setMouseDown(false);
-      }
     });
   }
 
@@ -150,14 +140,9 @@ export class Game {
     const worldMousePos = this.camera.screenToWorld(new Vector2(mousePos.x, mousePos.y));
     this.player.setMousePosition(worldMousePos.x, worldMousePos.y);
 
-    // 处理射击输入（由鼠标事件监听器处理全自动，这里只是触发射击）
+    // 处理自动射击（自动寻找并射击范围内最近的敌人）
     const currentTime = performance.now() / 1000;
     this.player.fire(currentTime);
-
-    // 处理装弹输入
-    if (this.inputManager.isKeyPressed('r')) {
-      this.player.reload(currentTime);
-    }
 
     // 处理武器切换输入
     if (this.inputManager.isKeyPressed('1')) {
@@ -388,6 +373,9 @@ export class Game {
     
     // 为NPC设置射击回调
     this.setupNPCShootCallback();
+    
+    // 为玩家设置获取NPC列表的回调（用于自动射击）
+    this.player.setGetNPCsCallback(() => this.npcManager.getAllNPCs());
     
     // 重新初始化物品管理器
     this.itemManager = new ItemManager();
